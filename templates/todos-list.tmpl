@@ -1,0 +1,23 @@
+{{range .}}
+<div class="todo-item{{if .Completed}} completed{{end}}">
+    <span class="todo-text" 
+          hx-put="/todos/{{.ID}}/toggle" 
+          hx-target="#todo-list" 
+          hx-swap="innerHTML">{{.Text}}</span>
+    <div class="todo-actions">
+        <button class="btn btn-toggle{{if .Completed}} completed{{end}}" 
+                hx-put="/todos/{{.ID}}/toggle" 
+                hx-target="#todo-list" 
+                hx-swap="innerHTML">
+            {{if .Completed}}Undo{{else}}Done{{end}}
+        </button>
+        <button class="btn btn-delete" 
+                hx-delete="/todos/{{.ID}}" 
+                hx-target="#todo-list" 
+                hx-swap="innerHTML"
+                hx-confirm="Are you sure you want to delete this todo?">
+            Delete
+        </button>
+    </div>
+</div>
+{{end}}
