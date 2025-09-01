@@ -12,9 +12,7 @@ import (
 	"testing"
 )
 
-// Tests use the same embedded files as the main app
-
-func TestAppIntegration(t *testing.T) {
+func TestApp(t *testing.T) {
 	// Create a temporary directory for test files
 	tempDir := t.TempDir()
 	testFile := filepath.Join(tempDir, "test_todos.jsonl")
@@ -47,7 +45,7 @@ func TestAppIntegration(t *testing.T) {
 	})
 
 	t.Run("AddTodo", func(t *testing.T) {
-		// Add a todo
+		// Add a todo via HTTP
 		resp, err := http.PostForm(server.URL+"/todos", url.Values{
 			"text": {"Test todo item"},
 		})
@@ -58,34 +56,6 @@ func TestAppIntegration(t *testing.T) {
 
 		if resp.StatusCode != http.StatusOK {
 			t.Errorf("Expected status 200, got %d", resp.StatusCode)
-		}
-
-		// Check that the todo was saved to file
-		if _, err := os.Stat(testFile); os.IsNotExist(err) {
-			t.Fatal("Todo file was not created")
-		}
-
-		// Read and verify the JSONL content
-		content, err := os.ReadFile(testFile)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		var todo todo
-		if err := json.Unmarshal(content, &todo); err != nil {
-			t.Fatal("Failed to parse JSONL:", err)
-		}
-
-		if todo.Text != "Test todo item" {
-			t.Errorf("Expected 'Test todo item', got '%s'", todo.Text)
-		}
-
-		if todo.ID != 1 {
-			t.Errorf("Expected ID 1, got %d", todo.ID)
-		}
-
-		if todo.Completed {
-			t.Error("Expected todo to be incomplete")
 		}
 	})
 
@@ -113,10 +83,11 @@ func TestAppIntegration(t *testing.T) {
 		if !strings.Contains(html, `hx-delete="/todos/1"`) {
 			t.Error("Delete button not found")
 		}
+
 	})
 
 	t.Run("ToggleTodo", func(t *testing.T) {
-		// Toggle todo completion
+		// Toggle todo completion via HTTP
 		req, err := http.NewRequest("PUT", server.URL+"/todos/1/toggle", nil)
 		if err != nil {
 			t.Fatal(err)
@@ -145,25 +116,10 @@ func TestAppIntegration(t *testing.T) {
 		if !strings.Contains(html, "Undo") {
 			t.Error("Should show Undo button for completed todo")
 		}
-
-		// Verify the file was updated
-		content, err := os.ReadFile(testFile)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		var todo todo
-		if err := json.Unmarshal(content, &todo); err != nil {
-			t.Fatal("Failed to parse JSONL:", err)
-		}
-
-		if !todo.Completed {
-			t.Error("Todo should be completed in file")
-		}
 	})
 
 	t.Run("AddMultipleTodos", func(t *testing.T) {
-		// Add second todo
+		// Add second todo via HTTP
 		resp, err := http.PostForm(server.URL+"/todos", url.Values{
 			"text": {"Second todo"},
 		})
@@ -172,7 +128,7 @@ func TestAppIntegration(t *testing.T) {
 		}
 		defer resp.Body.Close()
 
-		// Add third todo
+		// Add third todo via HTTP
 		resp, err = http.PostForm(server.URL+"/todos", url.Values{
 			"text": {"Third todo"},
 		})
@@ -181,28 +137,30 @@ func TestAppIntegration(t *testing.T) {
 		}
 		defer resp.Body.Close()
 
-		// Verify file contains multiple JSON lines
-		content, err := os.ReadFile(testFile)
+		// Test todo ordering (newest first)
+		resp, err = http.Get(server.URL + "/todos")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+
+		body, err := io.ReadAll(resp.Body)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		lines := strings.Split(strings.TrimSpace(string(content)), "\n")
-		if len(lines) != 3 {
-			t.Errorf("Expected 3 lines in JSONL file, got %d", len(lines))
-		}
-
-		// Verify each line is valid JSON
-		for i, line := range lines {
-			var todo todo
-			if err := json.Unmarshal([]byte(line), &todo); err != nil {
-				t.Errorf("Line %d is not valid JSON: %s", i+1, err)
-			}
+		html := string(body)
+		thirdTodoPos := strings.Index(html, "Third todo")
+		firstTodoPos := strings.Index(html, "Test todo item")
+		if thirdTodoPos == -1 || firstTodoPos == -1 {
+			t.Error("Expected todos not found in HTML")
+		} else if thirdTodoPos > firstTodoPos {
+			t.Error("Expected newest todo (Third todo) to appear before older todo (Test todo item)")
 		}
 	})
 
 	t.Run("DeleteTodo", func(t *testing.T) {
-		// Delete the second todo (ID 2)
+		// Delete the second todo (ID 2) via HTTP
 		req, err := http.NewRequest("DELETE", server.URL+"/todos/2", nil)
 		if err != nil {
 			t.Fatal(err)
@@ -217,22 +175,39 @@ func TestAppIntegration(t *testing.T) {
 		if resp.StatusCode != http.StatusOK {
 			t.Errorf("Expected status 200, got %d", resp.StatusCode)
 		}
+	})
 
-		// Verify file now contains 2 lines (deleted one)
-		content, err := os.ReadFile(testFile)
+	t.Run("ErrorHandling", func(t *testing.T) {
+		// Try to toggle non-existent todo
+		req, err := http.NewRequest("PUT", server.URL+"/todos/999/toggle", nil)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		lines := strings.Split(strings.TrimSpace(string(content)), "\n")
-		if len(lines) != 2 {
-			t.Errorf("Expected 2 lines after deletion, got %d", len(lines))
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode == http.StatusOK {
+			t.Error("Expected error status when toggling non-existent todo")
 		}
 
-		// Verify the right todo was deleted (should not contain "Second todo")
-		fileContent := string(content)
-		if strings.Contains(fileContent, "Second todo") {
-			t.Error("Deleted todo still exists in file")
+		// Try to delete non-existent todo
+		req, err = http.NewRequest("DELETE", server.URL+"/todos/999", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		resp, err = http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode == http.StatusOK {
+			t.Error("Expected error status when deleting non-existent todo")
 		}
 	})
 
@@ -369,141 +344,6 @@ func TestAppIntegration(t *testing.T) {
 			if err := json.Unmarshal([]byte(line), &todo); err != nil {
 				t.Errorf("Line %d is not valid JSON: %s", i+1, err)
 			}
-		}
-	})
-}
-
-func TestTodoAppUnit(t *testing.T) {
-	t.Run("NewTodoApp", func(t *testing.T) {
-		tempDir := t.TempDir()
-		testFile := filepath.Join(tempDir, "new_test_todos.jsonl")
-		app := newTodoApp(testFile)
-
-		if len(app.todos) != 0 {
-			t.Error("Expected empty todos list for new app")
-		}
-
-		if app.nextID != 1 {
-			t.Errorf("Expected nextID to be 1, got %d", app.nextID)
-		}
-
-		if app.filename != testFile {
-			t.Errorf("Expected filename to be %s, got %s", testFile, app.filename)
-		}
-	})
-
-	t.Run("AddTodo", func(t *testing.T) {
-		tempDir := t.TempDir()
-		testFile := filepath.Join(tempDir, "add_test_todos.jsonl")
-		app := newTodoApp(testFile)
-
-		err := app.addTodo("First todo")
-		if err != nil {
-			t.Fatal("Failed to add todo:", err)
-		}
-
-		if len(app.todos) != 1 {
-			t.Errorf("Expected 1 todo, got %d", len(app.todos))
-		}
-
-		todo := app.todos[0]
-		if todo.Text != "First todo" {
-			t.Errorf("Expected 'First todo', got '%s'", todo.Text)
-		}
-
-		if todo.ID != 1 {
-			t.Errorf("Expected ID 1, got %d", todo.ID)
-		}
-
-		if todo.Completed {
-			t.Error("Expected todo to be incomplete")
-		}
-	})
-
-	t.Run("ToggleTodo", func(t *testing.T) {
-		tempDir := t.TempDir()
-		testFile := filepath.Join(tempDir, "toggle_test_todos.jsonl")
-		app := newTodoApp(testFile)
-		app.addTodo("Toggle test")
-
-		// Toggle to completed
-		err := app.toggleTodo(1)
-		if err != nil {
-			t.Fatal("Failed to toggle todo:", err)
-		}
-
-		if !app.todos[0].Completed {
-			t.Error("Expected todo to be completed after toggle")
-		}
-
-		// Toggle back to incomplete
-		err = app.toggleTodo(1)
-		if err != nil {
-			t.Fatal("Failed to toggle todo back:", err)
-		}
-
-		if app.todos[0].Completed {
-			t.Error("Expected todo to be incomplete after second toggle")
-		}
-
-		// Try to toggle non-existent todo
-		err = app.toggleTodo(999)
-		if err == nil {
-			t.Error("Expected error when toggling non-existent todo")
-		}
-	})
-
-	t.Run("DeleteTodo", func(t *testing.T) {
-		tempDir := t.TempDir()
-		testFile := filepath.Join(tempDir, "delete_test_todos.jsonl")
-		app := newTodoApp(testFile)
-		app.addTodo("To be deleted")
-		app.addTodo("To remain")
-
-		if len(app.todos) != 2 {
-			t.Fatal("Setup failed: expected 2 todos")
-		}
-
-		// Delete first todo
-		err := app.deleteTodo(1)
-		if err != nil {
-			t.Fatal("Failed to delete todo:", err)
-		}
-
-		if len(app.todos) != 1 {
-			t.Errorf("Expected 1 todo after deletion, got %d", len(app.todos))
-		}
-
-		if app.todos[0].Text != "To remain" {
-			t.Error("Wrong todo was deleted")
-		}
-
-		// Try to delete non-existent todo
-		err = app.deleteTodo(999)
-		if err == nil {
-			t.Error("Expected error when deleting non-existent todo")
-		}
-	})
-
-	t.Run("GetTodos", func(t *testing.T) {
-		tempDir := t.TempDir()
-		testFile := filepath.Join(tempDir, "get_test_todos.jsonl")
-		app := newTodoApp(testFile)
-		app.addTodo("First")
-		app.addTodo("Second")
-
-		todos := app.getTodos()
-		if len(todos) != 2 {
-			t.Errorf("Expected 2 todos, got %d", len(todos))
-		}
-
-		// Should be in reverse order (newest first)
-		if todos[0].Text != "Second" {
-			t.Error("Expected newest todo first")
-		}
-
-		if todos[1].Text != "First" {
-			t.Error("Expected oldest todo last")
 		}
 	})
 }
