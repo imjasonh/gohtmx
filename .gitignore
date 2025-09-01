@@ -34,3 +34,6 @@ Thumbs.db
 
 # App specific
 todos.txt
+
+# Binaries
+bin/
