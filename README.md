@@ -23,12 +23,10 @@ make release  # Build standalone release binary (~11 MB)
 ./bin/gohtmx  # Run binary
 
 # Or run directly:
-make run    # Generate assets and run
+make run
 
 # Or build and push a multi-arch image
-make image
+make image  # (~7.3 MB)
 ```
 
-The resulting image is ~7.3 MB
-
-Server runs on http://localhost:8080
+Server runs on http://localhost:8080 and writes to todos.jsonl by default.
