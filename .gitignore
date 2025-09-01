@@ -33,7 +33,7 @@ ehthumbs.db
 Thumbs.db
 
 # App specific
-todos.txt
+todos.jsonl
 
 # Binaries
 bin/
