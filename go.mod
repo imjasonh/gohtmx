@@ -5,6 +5,13 @@ go 1.24.4
 tool github.com/air-verse/air
 
 require (
+	cloud.google.com/go/compute/metadata v0.6.0
+	github.com/chainguard-dev/clog v1.7.0
+	github.com/google/go-github/v66 v66.0.0
+	github.com/russross/blackfriday/v2 v2.1.0
+)
+
+require (
 	dario.cat/mergo v1.0.2 // indirect
 	github.com/air-verse/air v1.62.0 // indirect
 	github.com/bep/godartsass/v2 v2.5.0 // indirect
@@ -14,6 +21,7 @@ require (
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/gobwas/glob v0.2.3 // indirect
 	github.com/gohugoio/hugo v0.147.6 // indirect
+	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/pelletier/go-toml v1.9.5 // indirect

@@ -2,7 +2,9 @@ package app
 
 import (
 	"embed"
+	"log/slog"
 	"net/http"
+	"os"
 	"strings"
 )
 
@@ -13,17 +15,21 @@ var staticFiles embed.FS
 var templateFiles embed.FS
 
 type App struct {
-	todoApp  *todoApp
-	handlers *handlers
+	githubApp *githubApp
+	handlers  *handlers
 }
 
-func New(filename string) *App {
-	todoApp := newTodoApp(filename)
-	handlers := newHandlers(todoApp, templateFiles)
+func New() *App {
+	githubApp := newGithubApp()
+	handlers := newHandlers(githubApp, templateFiles)
+
+	if os.Getenv("GITHUB_TOKEN") == "" {
+		slog.Info("GitHub API authentication not configured (using unauthenticated requests)")
+	}
 
 	return &App{
-		todoApp:  todoApp,
-		handlers: handlers,
+		githubApp: githubApp,
+		handlers:  handlers,
 	}
 }
 
@@ -43,29 +49,14 @@ func (app *App) SetupRoutes(mux *http.ServeMux) {
 
 		// Serve static files for any path that starts with /static/
 		if strings.HasPrefix(r.URL.Path, "/static/") {
-			// Strip the /static prefix and serve from the embedded filesystem
-			path := strings.TrimPrefix(r.URL.Path, "/static/")
-			data, err := staticFiles.ReadFile("static/" + path)
-			if err != nil {
-				http.NotFound(w, r)
-				return
-			}
-
-			// Set appropriate content type
-			if strings.HasSuffix(path, ".css") {
-				w.Header().Set("Content-Type", "text/css")
-			} else if strings.HasSuffix(path, ".js") {
-				w.Header().Set("Content-Type", "application/javascript")
-			}
-
-			w.Write(data)
+			http.FileServer(http.FS(staticFiles)).ServeHTTP(w, r)
 			return
 		}
 
 		http.NotFound(w, r)
 	})
 
-	// API routes
-	mux.HandleFunc("/todos", app.handlers.todosHandler)
-	mux.HandleFunc("/todos/", app.handlers.todosPathHandler)
+	// GitHub browser routes
+	mux.HandleFunc("/browse/", app.handlers.browseHandler)
+	mux.HandleFunc("/api/refs/", app.handlers.refsHandler)
 }

@@ -1,0 +1,19 @@
+{{range .Contents}}
+<div class="tree-item {{if .IsDir}}directory{{else}}file{{end}}">
+    {{if .IsDir}}
+        <span class="icon">📁</span>
+        <a href="/browse/{{$.Owner}}/{{$.Repo}}/{{$.Ref}}/{{.Path}}"
+           hx-get="/browse/{{$.Owner}}/{{$.Repo}}/{{$.Ref}}/{{.Path}}"
+           hx-target="#file-tree"
+           hx-swap="innerHTML"
+           hx-push-url="true">{{.Name}}</a>
+    {{else}}
+        <span class="icon">📄</span>
+        <a href="/browse/{{$.Owner}}/{{$.Repo}}/{{$.Ref}}/{{.Path}}"
+           hx-get="/browse/{{$.Owner}}/{{$.Repo}}/{{$.Ref}}/{{.Path}}"
+           hx-target="#file-content"
+           hx-swap="innerHTML"
+           hx-push-url="true">{{.Name}}</a>
+    {{end}}
+</div>
+{{end}}

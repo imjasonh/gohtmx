@@ -1,6 +1,9 @@
 .PHONY: build run dev clean install-air
 
 KO_DOCKER_REPO?=ttl.sh/jason
+GITHUB_TOKEN?=$(shell gh auth token 2>/dev/null)
+
+export GITHUB_TOKEN
 
 release:
 	go build -o bin/gohtmx .

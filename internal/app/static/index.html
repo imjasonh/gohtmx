@@ -3,25 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TODO List</title>
+    <title>GitHub Repository Browser</title>
     <link rel="stylesheet" href="/static/style.css">
-    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>TODO List</h1>
+            <h1>GitHub Repository Browser</h1>
+            <p class="subtitle">Browse public GitHub repositories</p>
         </header>
-        
+
         <main>
-            <form class="add-todo-form" hx-post="/todos" hx-target="#todo-list" hx-swap="innerHTML" hx-on::after-request="this.reset()">
-                <input type="text" name="text" placeholder="Add a new todo..." required>
-                <button type="submit">Add</button>
+            <form class="repo-form" onsubmit="event.preventDefault(); const parts = this.repo.value.split('/'); if (parts.length >= 2) window.location.href = '/browse/' + parts[0] + '/' + parts[1];">
+                <input type="text" name="repo" placeholder="Enter owner/repo (e.g., golang/go)" required>
+                <button type="submit">Browse</button>
             </form>
-            
-            <div id="todo-list" hx-get="/todos" hx-trigger="load">
-                Loading todos...
-            </div>
         </main>
     </div>
 </body>

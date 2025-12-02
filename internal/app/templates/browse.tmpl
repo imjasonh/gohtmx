@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Owner}}/{{.Repo}} - GitHub Browser</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            hljs.highlightAll();
+        });
+
+        // Re-highlight after HTMX loads new content
+        document.addEventListener('htmx:afterSettle', (event) => {
+            event.detail.target.querySelectorAll('code').forEach((block) => {
+                hljs.highlightElement(block);
+            });
+        });
+    </script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><a href="/">GitHub Repository Browser</a></h1>
+        </header>
+
+        <main>
+            <div class="repo-header">
+                <div class="repo-info">
+                    <h2>{{.Owner}}/{{.Repo}}</h2>
+                    <select id="ref-selector"
+                            hx-get="/api/refs/{{.Owner}}/{{.Repo}}?current={{.Ref}}"
+                            hx-trigger="load"
+                            hx-swap="innerHTML"
+                            hx-on::after-swap="htmx.trigger('#file-tree', 'refChanged')">
+                        <option>{{.Ref}}</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="browser-layout">
+                <div id="file-tree"
+                     class="file-tree"
+                     hx-get="/browse/{{.Owner}}/{{.Repo}}/{{.Ref}}/{{.Path}}"
+                     hx-trigger="load"
+                     hx-swap="innerHTML">
+                    <div class="loading">Loading...</div>
+                </div>
+
+                <div id="file-content" class="file-content">
+                    <div class="empty-state">Select a file to view its contents</div>
+                </div>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

@@ -1,0 +1,10 @@
+{{range .Branches}}
+<option value="{{.}}" {{if eq . $.Current}}selected{{end}}>{{.}}</option>
+{{end}}
+{{if .Tags}}
+<optgroup label="Tags">
+{{range .Tags}}
+<option value="{{.}}" {{if eq . $.Current}}selected{{end}}>{{.}}</option>
+{{end}}
+</optgroup>
+{{end}}

@@ -1,0 +1,13 @@
+{{define "file-display"}}
+<div class="file-header">
+    <h3>{{.Path}}</h3>
+    <span class="file-size">{{.Size}} bytes</span>
+</div>
+{{if .IsMarkdown}}
+<div class="markdown-content">
+    {{.HTML}}
+</div>
+{{else}}
+<pre><code>{{.Content}}</code></pre>
+{{end}}
+{{end}}
