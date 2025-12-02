@@ -12,6 +12,13 @@
         document.addEventListener('DOMContentLoaded', () => {
             hljs.highlightAll();
         });
+
+        // Re-highlight after HTMX loads new content
+        document.addEventListener('htmx:afterSettle', (event) => {
+            event.detail.target.querySelectorAll('code').forEach((block) => {
+                hljs.highlightElement(block);
+            });
+        });
     </script>
 </head>
 <body>
@@ -25,9 +32,13 @@
                 <div class="repo-info">
                     <h2><a href="/browse/{{.Owner}}/{{.Repo}}/{{.Ref}}/">{{.Owner}}/{{.Repo}}</a></h2>
                     <select id="ref-selector"
+                            data-owner="{{.Owner}}"
+                            data-repo="{{.Repo}}"
+                            data-path="{{.Path}}"
                             hx-get="/api/refs/{{.Owner}}/{{.Repo}}?current={{.Ref}}"
-                            hx-trigger="load"
-                            hx-swap="innerHTML">
+                            hx-trigger="load once"
+                            hx-swap="innerHTML"
+                            onchange="window.location.href='/browse/' + this.dataset.owner + '/' + this.dataset.repo + '/' + this.value + '/' + this.dataset.path">
                         <option>{{.Ref}}</option>
                     </select>
                 </div>
